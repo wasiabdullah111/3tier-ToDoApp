@@ -28,5 +28,11 @@ jobs:
     - name: Deploy to EKS
       run: |
         aws eks update-kubeconfig --region us-east-1 --name demo-1122
+        kubectl apply -f k8s/service-account.yaml
+        kubectl apply -f k8s/rbac.yaml
+        kubectl apply -f k8s/secrets.yaml
+        kubectl apply -f k8s/mongo-deployment.yaml
         kubectl apply -f k8s/frontend-deployment.yaml
         kubectl apply -f k8s/backend-deployment.yaml
+        kubectl apply -f k8s/ingress.yaml
+        kubectl get pods -n default

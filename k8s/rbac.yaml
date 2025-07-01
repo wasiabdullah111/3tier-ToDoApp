@@ -14,7 +14,7 @@ metadata:
 subjects:
 - kind: ServiceAccount
   name: healthcare-sa
-  namespace: workshop
+  namespace: default
 roleRef:
   kind: ClusterRole
   name: healthcare-role

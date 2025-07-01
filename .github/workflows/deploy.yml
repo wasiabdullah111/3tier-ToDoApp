@@ -12,7 +12,7 @@ jobs:
         sudo apt-get update && sudo apt-get install -y jq
         curl "https://awscli.amazonaws.com/awscli-exe-linux-x86_64.zip" -o "awscliv2.zip"
         unzip awscliv2.zip
-        sudo ./aws/install
+        sudo ./aws/install --update
     - name: Deploy to EKS
       run: |
         export KUBECONFIG=${GITHUB_WORKSPACE}/kubeconfig.yaml

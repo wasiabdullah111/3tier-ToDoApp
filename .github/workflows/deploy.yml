@@ -1,38 +1,52 @@
 name: Deploy to EKS
+
 on:
   push:
     branches: [ main ]
+
 jobs:
   deploy:
     runs-on: ubuntu-latest
     permissions:
       id-token: write
       contents: read
+
     steps:
-    - uses: actions/checkout@v3
+    - name: Checkout Code
+      uses: actions/checkout@v3
+
     - name: Configure AWS Credentials
       uses: aws-actions/configure-aws-credentials@v2
       with:
         role-to-assume: arn:aws:iam::851725361780:role/github-actions-eks
         aws-region: us-east-1
+
     - name: Login to Amazon ECR
       uses: aws-actions/amazon-ecr-login@v1
+
     - name: Build, Tag, and Push Frontend Image
       run: |
         docker build -t 851725361780.dkr.ecr.us-east-1.amazonaws.com/frontend:latest ./frontend
         docker push 851725361780.dkr.ecr.us-east-1.amazonaws.com/frontend:latest
+
     - name: Build, Tag, and Push Backend Image
       run: |
         docker build -t 851725361780.dkr.ecr.us-east-1.amazonaws.com/backend:latest ./backend
         docker push 851725361780.dkr.ecr.us-east-1.amazonaws.com/backend:latest
+
     - name: Deploy to EKS
       run: |
+        # Set a custom kubeconfig path
+        export KUBECONFIG=${GITHUB_WORKSPACE}/kubeconfig.yaml
+
+        # Update kubeconfig using OIDC-authenticated session
         aws eks update-kubeconfig \
-        --region us-east-1 \
-        --name demo-1122 \
-        --alias demo-1122 \
-        --kubeconfig $KUBECONFIG 
-       
+          --region us-east-1 \
+          --name demo-1122 \
+          --alias demo-1122 \
+          --kubeconfig $KUBECONFIG
+
+        # Apply Kubernetes manifests
         kubectl apply -f k8s/service-account.yaml --kubeconfig=$KUBECONFIG
         kubectl apply -f k8s/rbac.yaml --kubeconfig=$KUBECONFIG
         kubectl apply -f k8s/secrets.yaml --kubeconfig=$KUBECONFIG
@@ -40,7 +54,6 @@ jobs:
         kubectl apply -f k8s/frontend-deployment.yaml --kubeconfig=$KUBECONFIG
         kubectl apply -f k8s/backend-deployment.yaml --kubeconfig=$KUBECONFIG
         kubectl apply -f k8s/ingress.yaml --kubeconfig=$KUBECONFIG
+
+        # Confirm deployment
         kubectl get pods -n default --kubeconfig=$KUBECONFIG
-
-
-    

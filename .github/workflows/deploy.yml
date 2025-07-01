@@ -23,6 +23,8 @@ jobs:
         aws sts get-caller-identity || echo "Failed to get caller identity: $?"
         echo "AWS_REGION=$AWS_REGION"
         echo "AWS_DEFAULT_REGION=$AWS_DEFAULT_REGION"
+        echo "GITHUB_REPOSITORY=$GITHUB_REPOSITORY"
+        echo "GITHUB_REF=$GITHUB_REF"
     - name: Deploy to EKS
       run: |
         export KUBECONFIG=${GITHUB_WORKSPACE}/kubeconfig.yaml

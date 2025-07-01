@@ -1,0 +1,54 @@
+apiVersion: v1
+kind: Service
+metadata:
+  name: frontend
+  namespace: workshop
+spec:
+  ports:
+    - name: frontend
+      protocol: TCP
+      port: 3000
+      targetPort: 3000
+  type: ClusterIP
+  selector:
+    role : frontend
+
+
+
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: frontend
+  namespace: workshop
+  labels:
+    role: frontend
+
+spec:
+  replicas: 1
+  strategy:
+    type: RollingUpdate 
+    rollingUpdate:
+      maxSurge: 1
+      maxUnavailable: 25%
+
+  selector:
+    matchLabels:
+      role: frontend
+  template:
+    metadata:
+      labels:
+        role: frontend
+    spec:
+      serviceAccountName: healthcare-sa
+      containers:
+        - name: frontend
+          image: localhost:32000/frontend
+          ports:
+            - containerPort: 3000
+        
+          env:
+            - name: MONGO_HOST
+              value: mongo-svc.workshop.svc.cluster.local
+            - name: MONGO_PORT
+              value: "27017"

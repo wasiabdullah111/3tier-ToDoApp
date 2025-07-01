@@ -27,12 +27,20 @@ jobs:
         docker push 851725361780.dkr.ecr.us-east-1.amazonaws.com/backend:latest
     - name: Deploy to EKS
       run: |
-        aws eks update-kubeconfig --region us-east-1 --name demo-1122
-        kubectl apply -f k8s/service-account.yaml
-        kubectl apply -f k8s/rbac.yaml
-        kubectl apply -f k8s/secrets.yaml
-        kubectl apply -f k8s/mongo-deployment.yaml
-        kubectl apply -f k8s/frontend-deployment.yaml
-        kubectl apply -f k8s/backend-deployment.yaml
-        kubectl apply -f k8s/ingress.yaml
-        kubectl get pods -n default
+        aws eks update-kubeconfig \
+        --region us-east-1 \
+        --name demo-1122 \
+        --alias demo-1122 \
+        --kubeconfig $KUBECONFIG 
+       
+        kubectl apply -f k8s/service-account.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/rbac.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/secrets.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/mongo-deployment.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/frontend-deployment.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/backend-deployment.yaml --kubeconfig=$KUBECONFIG
+        kubectl apply -f k8s/ingress.yaml --kubeconfig=$KUBECONFIG
+        kubectl get pods -n default --kubeconfig=$KUBECONFIG
+
+
+    

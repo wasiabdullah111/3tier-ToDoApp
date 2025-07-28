@@ -6,7 +6,7 @@ pipeline {
         BACKEND_REPO = '851725361780.dkr.ecr.us-east-1.amazonaws.com/3tier-backend'
         FRONTEND_REPO = '851725361780.dkr.ecr.us-east-1.amazonaws.com/3tier-frontend'
         IMAGE_TAG = 'latest'
-        APP_SERVER = 'ubuntu@3.81.224.147' // Replace with your new app server's public IP
+        APP_SERVER = 'ubuntu@3.81.224.147'
     }
 
     stages {
@@ -16,12 +16,18 @@ pipeline {
             }
         }
 
-        stage('Login to AWS ECR') {
+        stage('Login to ECR') {
             steps {
-                sh '''
-                    aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
-                    aws ecr get-login-password | docker login --username AWS --password-stdin $FRONTEND_REPO
-                '''
+                withCredentials([usernamePassword(credentialsId: 'aws-credentials', usernameVariable: 'AWS_ACCESS_KEY_ID', passwordVariable: 'AWS_SECRET_ACCESS_KEY')]) {
+                    sh '''
+                        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                        aws configure set region $AWS_DEFAULT_REGION
+
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $FRONTEND_REPO
+                    '''
+                }
             }
         }
 
@@ -34,7 +40,7 @@ pipeline {
             }
         }
 
-        stage('Push Docker Images to ECR') {
+        stage('Push Docker Images') {
             steps {
                 sh '''
                     docker push $BACKEND_REPO:$IMAGE_TAG
@@ -43,29 +49,27 @@ pipeline {
             }
         }
 
-        stage('Deploy on App Server') {
+        stage('Deploy to EC2') {
             steps {
-                sshagent(credentials: ['app-server-ssh']) {
+                sshagent(['app-server-ssh']) {
                     sh """
-                    ssh -o StrictHostKeyChecking=no $APP_SERVER << 'EOF'
-                        echo "Logging into ECR..."
+                        ssh -o StrictHostKeyChecking=no $APP_SERVER << 'EOF'
+                        aws configure set aws_access_key_id $AWS_ACCESS_KEY_ID
+                        aws configure set aws_secret_access_key $AWS_SECRET_ACCESS_KEY
+                        aws configure set region $AWS_DEFAULT_REGION
+
                         aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
                         aws ecr get-login-password | docker login --username AWS --password-stdin $FRONTEND_REPO
 
-                        echo "Pulling latest images..."
                         docker pull $BACKEND_REPO:$IMAGE_TAG
                         docker pull $FRONTEND_REPO:$IMAGE_TAG
 
-                        echo "Stopping and removing old containers if they exist..."
                         docker stop backend || true && docker rm backend || true
                         docker stop frontend || true && docker rm frontend || true
 
-                        echo "Starting new containers..."
                         docker run -d --name backend -p 8080:8080 $BACKEND_REPO:$IMAGE_TAG
                         docker run -d --name frontend -p 80:3000 --link backend $FRONTEND_REPO:$IMAGE_TAG
-
-                        echo "Deployment completed successfully."
-                    EOF
+                        EOF
                     """
                 }
             }

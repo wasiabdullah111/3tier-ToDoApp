@@ -6,7 +6,7 @@ pipeline {
         BACKEND_REPO = '851725361780.dkr.ecr.us-east-1.amazonaws.com/3tier-backend'
         FRONTEND_REPO = '851725361780.dkr.ecr.us-east-1.amazonaws.com/3tier-frontend'
         IMAGE_TAG = 'latest'
-        APP_SERVER = 'ubuntu@3.81.224.147'
+        APP_SERVER = 'ubuntu@3.81.224.147' // Replace with your new app server's public IP
     }
 
     stages {
@@ -16,7 +16,7 @@ pipeline {
             }
         }
 
-        stage('Login to ECR') {
+        stage('Login to AWS ECR') {
             steps {
                 sh '''
                     aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
@@ -34,7 +34,7 @@ pipeline {
             }
         }
 
-        stage('Push Docker Images') {
+        stage('Push Docker Images to ECR') {
             steps {
                 sh '''
                     docker push $BACKEND_REPO:$IMAGE_TAG
@@ -43,22 +43,28 @@ pipeline {
             }
         }
 
-        stage('Deploy to EC2') {
+        stage('Deploy on App Server') {
             steps {
-                sshagent(['app-server-ssh']) {
+                sshagent(credentials: ['app-server-ssh']) {
                     sh """
                     ssh -o StrictHostKeyChecking=no $APP_SERVER << 'EOF'
-                    aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
-                    aws ecr get-login-password | docker login --username AWS --password-stdin $FRONTEND_REPO
+                        echo "Logging into ECR..."
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $BACKEND_REPO
+                        aws ecr get-login-password | docker login --username AWS --password-stdin $FRONTEND_REPO
 
-                    docker pull $BACKEND_REPO:$IMAGE_TAG
-                    docker pull $FRONTEND_REPO:$IMAGE_TAG
+                        echo "Pulling latest images..."
+                        docker pull $BACKEND_REPO:$IMAGE_TAG
+                        docker pull $FRONTEND_REPO:$IMAGE_TAG
 
-                    docker stop backend || true && docker rm backend || true
-                    docker stop frontend || true && docker rm frontend || true
+                        echo "Stopping and removing old containers if they exist..."
+                        docker stop backend || true && docker rm backend || true
+                        docker stop frontend || true && docker rm frontend || true
 
-                    docker run -d --name backend -p 8080:8080 $BACKEND_REPO:$IMAGE_TAG
-                    docker run -d --name frontend -p 80:3000 --link backend $FRONTEND_REPO:$IMAGE_TAG
+                        echo "Starting new containers..."
+                        docker run -d --name backend -p 8080:8080 $BACKEND_REPO:$IMAGE_TAG
+                        docker run -d --name frontend -p 80:3000 --link backend $FRONTEND_REPO:$IMAGE_TAG
+
+                        echo "Deployment completed successfully."
                     EOF
                     """
                 }

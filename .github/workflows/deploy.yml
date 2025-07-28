@@ -1,7 +1,7 @@
 name: Deploy to EKS
 on:
   push:
-    branches: [ main ]
+    branches: [ XXXXX ]
 jobs:
   deploy:
     runs-on: ubuntu-latest
